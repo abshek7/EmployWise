@@ -43,5 +43,4 @@ This is a React + Vite-based application for managing users, integrating with th
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-repo/employwise-user-management.git
-   cd employwise-user-management
+   git clone https://github.com/abshek7/EmployWise.git

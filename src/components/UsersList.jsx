@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function UsersList() {
+<<<<<<< HEAD
   const [users, setUsers] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -9,6 +10,15 @@ export default function UsersList() {
   const [message, setMessage] = useState('');
   const [deletedUsers, setDeletedUsers] = useState([]);
   const navigate = useNavigate();
+=======
+  const [users, setUsers] = useState([])
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [editingUser, setEditingUser] = useState(null)
+  const [message, setMessage] = useState('')
+  const [deletedUsers, setDeletedUsers] = useState([]) // State to track deleted user IDs
+  const navigate = useNavigate()
+>>>>>>> be0b045e543fd694c385d0f3b690c04064fe193e
 
   useEffect(() => {
     fetchUsers();
@@ -16,6 +26,7 @@ export default function UsersList() {
 
   const fetchUsers = async () => {
     try {
+<<<<<<< HEAD
       const response = await fetch(`https://reqres.in/api/users?page=${page}`);
       const data = await response.json();
       const filteredUsers = data.data.filter((user) => !deletedUsers.includes(user.id));
@@ -27,6 +38,14 @@ export default function UsersList() {
 
       setUsers(usersWithPersistedData);
       setTotalPages(data.total_pages);
+=======
+      const response = await fetch(`https://reqres.in/api/users?page=${page}`)
+      const data = await response.json()
+      // Filter out deleted users from the fetched data
+      const filteredUsers = data.data.filter((user) => !deletedUsers.includes(user.id))
+      setUsers(filteredUsers)
+      setTotalPages(data.total_pages)
+>>>>>>> be0b045e543fd694c385d0f3b690c04064fe193e
     } catch (error) {
       console.error('Error fetching users:', error);
     }
@@ -73,9 +92,16 @@ export default function UsersList() {
       });
 
       if (response.ok) {
+<<<<<<< HEAD
         setMessage('User deleted successfully');
         setDeletedUsers((prev) => [...prev, id]);
         setUsers(users.filter(u => u.id !== id));
+=======
+        setMessage('User deleted successfully')
+        // Add user ID to the deletedUsers list
+        setDeletedUsers((prev) => [...prev, id])
+        setUsers(users.filter(u => u.id !== id))
+>>>>>>> be0b045e543fd694c385d0f3b690c04064fe193e
       } else {
         setMessage('Failed to delete user');
       }
