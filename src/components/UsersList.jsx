@@ -7,6 +7,7 @@ export default function UsersList() {
   const [totalPages, setTotalPages] = useState(1)
   const [editingUser, setEditingUser] = useState(null)
   const [message, setMessage] = useState('')
+  const [deletedUsers, setDeletedUsers] = useState([]) // State to track deleted user IDs
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -17,7 +18,9 @@ export default function UsersList() {
     try {
       const response = await fetch(`https://reqres.in/api/users?page=${page}`)
       const data = await response.json()
-      setUsers(data.data)
+      // Filter out deleted users from the fetched data
+      const filteredUsers = data.data.filter((user) => !deletedUsers.includes(user.id))
+      setUsers(filteredUsers)
       setTotalPages(data.total_pages)
     } catch (error) {
       console.error('Error fetching users:', error)
@@ -64,6 +67,8 @@ export default function UsersList() {
 
       if (response.ok) {
         setMessage('User deleted successfully')
+        // Add user ID to the deletedUsers list
+        setDeletedUsers((prev) => [...prev, id])
         setUsers(users.filter(u => u.id !== id))
       } else {
         setMessage('Failed to delete user')
@@ -76,8 +81,7 @@ export default function UsersList() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Employwise FE Assignment
-        </h1>
+        <h1 className="text-3xl font-bold text-gray-800">Employwise FE Assignment</h1>
         <button
           onClick={handleLogout}
           className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg shadow-md transition duration-300"
