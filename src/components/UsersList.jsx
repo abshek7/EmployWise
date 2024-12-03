@@ -2,31 +2,26 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function UsersList() {
-<<<<<<< HEAD
   const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]); 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [editingUser, setEditingUser] = useState(null);
   const [message, setMessage] = useState('');
-  const [deletedUsers, setDeletedUsers] = useState([]);
+  const [deletedUsers, setDeletedUsers] = useState([]); 
+  const [searchQuery, setSearchQuery] = useState(''); 
   const navigate = useNavigate();
-=======
-  const [users, setUsers] = useState([])
-  const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [editingUser, setEditingUser] = useState(null)
-  const [message, setMessage] = useState('')
-  const [deletedUsers, setDeletedUsers] = useState([]) // State to track deleted user IDs
-  const navigate = useNavigate()
->>>>>>> be0b045e543fd694c385d0f3b690c04064fe193e
 
   useEffect(() => {
     fetchUsers();
   }, [page]);
 
+  useEffect(() => {
+    filterUsers();
+  }, [users, searchQuery]);
+
   const fetchUsers = async () => {
     try {
-<<<<<<< HEAD
       const response = await fetch(`https://reqres.in/api/users?page=${page}`);
       const data = await response.json();
       const filteredUsers = data.data.filter((user) => !deletedUsers.includes(user.id));
@@ -38,16 +33,21 @@ export default function UsersList() {
 
       setUsers(usersWithPersistedData);
       setTotalPages(data.total_pages);
-=======
-      const response = await fetch(`https://reqres.in/api/users?page=${page}`)
-      const data = await response.json()
-      // Filter out deleted users from the fetched data
-      const filteredUsers = data.data.filter((user) => !deletedUsers.includes(user.id))
-      setUsers(filteredUsers)
-      setTotalPages(data.total_pages)
->>>>>>> be0b045e543fd694c385d0f3b690c04064fe193e
     } catch (error) {
       console.error('Error fetching users:', error);
+    }
+  };
+
+  const filterUsers = () => {
+    if (!searchQuery) {
+      setFilteredUsers(users);
+    } else {
+      const filtered = users.filter(user => 
+        user.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredUsers(filtered);
     }
   };
 
@@ -92,16 +92,9 @@ export default function UsersList() {
       });
 
       if (response.ok) {
-<<<<<<< HEAD
         setMessage('User deleted successfully');
         setDeletedUsers((prev) => [...prev, id]);
         setUsers(users.filter(u => u.id !== id));
-=======
-        setMessage('User deleted successfully')
-        // Add user ID to the deletedUsers list
-        setDeletedUsers((prev) => [...prev, id])
-        setUsers(users.filter(u => u.id !== id))
->>>>>>> be0b045e543fd694c385d0f3b690c04064fe193e
       } else {
         setMessage('Failed to delete user');
       }
@@ -121,7 +114,18 @@ export default function UsersList() {
           Logout
         </button>
       </div>
+
       {message && <p className="text-center text-green-600 font-medium mb-4">{message}</p>}
+      <div className="mb-6 max-w-screen-lg mx-auto">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search users..."
+          className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
       {editingUser ? (
         <form onSubmit={handleUpdate} className="mb-8 bg-white shadow-md rounded-lg p-6">
           <h2 className="text-2xl font-semibold mb-4 text-gray-800">Edit User</h2>
@@ -166,7 +170,7 @@ export default function UsersList() {
         </form>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {users.map((user) => (
+          {filteredUsers.map((user) => (
             <div
               key={user.id}
               className="bg-white shadow-lg rounded-lg overflow-hidden hover:shadow-xl transition duration-300"
@@ -198,6 +202,7 @@ export default function UsersList() {
           ))}
         </div>
       )}
+
       <div className="mt-8 flex justify-center space-x-4">
         <button
           onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
