@@ -1,83 +1,93 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function UsersList() {
-  const [users, setUsers] = useState([])
-  const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [editingUser, setEditingUser] = useState(null)
-  const [message, setMessage] = useState('')
-  const navigate = useNavigate()
+  const [users, setUsers] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [editingUser, setEditingUser] = useState(null);
+  const [message, setMessage] = useState('');
+  const [deletedUsers, setDeletedUsers] = useState([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchUsers()
-  }, [page])
+    fetchUsers();
+  }, [page]);
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch(`https://reqres.in/api/users?page=${page}`)
-      const data = await response.json()
-      setUsers(data.data)
-      setTotalPages(data.total_pages)
+      const response = await fetch(`https://reqres.in/api/users?page=${page}`);
+      const data = await response.json();
+      const filteredUsers = data.data.filter((user) => !deletedUsers.includes(user.id));
+      const persistedUsers = JSON.parse(localStorage.getItem('users')) || [];
+      const usersWithPersistedData = filteredUsers.map((user) => {
+        const persistedUser = persistedUsers.find((persisted) => persisted.id === user.id);
+        return persistedUser ? persistedUser : user;
+      });
+
+      setUsers(usersWithPersistedData);
+      setTotalPages(data.total_pages);
     } catch (error) {
-      console.error('Error fetching users:', error)
+      console.error('Error fetching users:', error);
     }
-  }
+  };
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    navigate('/')
-  }
+    localStorage.removeItem('token');
+    navigate('/');
+  };
 
   const handleEdit = (user) => {
-    setEditingUser(user)
-  }
+    setEditingUser(user);
+  };
 
   const handleUpdate = async (e) => {
-    e.preventDefault()
-    if (!editingUser) return
+    e.preventDefault();
+    if (!editingUser) return;
 
     try {
       const response = await fetch(`https://reqres.in/api/users/${editingUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingUser),
-      })
+      });
 
       if (response.ok) {
-        setMessage('User updated successfully')
-        setUsers(users.map(u => u.id === editingUser.id ? editingUser : u))
-        setEditingUser(null)
+        setMessage('User updated successfully');
+        setUsers(users.map(u => u.id === editingUser.id ? editingUser : u));
+        const updatedUsers = users.map(u => (u.id === editingUser.id ? editingUser : u));
+        localStorage.setItem('users', JSON.stringify(updatedUsers));
+        setEditingUser(null);
       } else {
-        setMessage('Failed to update user')
+        setMessage('Failed to update user');
       }
     } catch (error) {
-      setMessage('An error occurred while updating user')
+      setMessage('An error occurred while updating user');
     }
-  }
+  };
 
   const handleDelete = async (id) => {
     try {
       const response = await fetch(`https://reqres.in/api/users/${id}`, {
         method: 'DELETE',
-      })
+      });
 
       if (response.ok) {
-        setMessage('User deleted successfully')
-        setUsers(users.filter(u => u.id !== id))
+        setMessage('User deleted successfully');
+        setDeletedUsers((prev) => [...prev, id]);
+        setUsers(users.filter(u => u.id !== id));
       } else {
-        setMessage('Failed to delete user')
+        setMessage('Failed to delete user');
       }
     } catch (error) {
-      setMessage('An error occurred while deleting user')
+      setMessage('An error occurred while deleting user');
     }
-  }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Employwise FE Assignment
-        </h1>
+        <h1 className="text-3xl font-bold text-gray-800">Employwise FE Assignment</h1>
         <button
           onClick={handleLogout}
           className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg shadow-md transition duration-300"
@@ -179,5 +189,5 @@ export default function UsersList() {
         </button>
       </div>
     </div>
-  )
+  );
 }
