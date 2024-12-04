@@ -8,7 +8,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 
-
 export default function UsersList() {
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
@@ -44,7 +43,7 @@ export default function UsersList() {
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
-        title: "Error",
+        title: "❌ Error",
         description: "Failed to fetch users. Please try again.",
         variant: "destructive",
       });
@@ -76,39 +75,55 @@ export default function UsersList() {
   const handleUpdate = async (e) => {
     e.preventDefault();
     if (!editingUser) return;
-
+  
+    // Find the original user data for comparison
+    const originalUser = users.find(user => user.id === editingUser.id);
+  
+    // Check if any details have changed
+    if (
+      originalUser.first_name === editingUser.first_name &&
+      originalUser.last_name === editingUser.last_name &&
+      originalUser.email === editingUser.email
+    ) {
+      // No changes detected
+      toast({
+        title: "⚠️ No Changes",
+        description: "No updates were made to the user details.",
+      });
+      return;
+    }
+  
     try {
       const response = await fetch(`https://reqres.in/api/users/${editingUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingUser),
       });
-
+  
       if (response.ok) {
-        setUsers(users.map(u => u.id === editingUser.id ? editingUser : u));
         const updatedUsers = users.map(u => (u.id === editingUser.id ? editingUser : u));
+        setUsers(updatedUsers);
         localStorage.setItem('users', JSON.stringify(updatedUsers));
         setEditingUser(null);
         toast({
-          title: "Success",
+          title: "✅ Success",
           description: "User updated successfully",
         });
       } else {
         toast({
-          title: "Error",
+          title: "❌ Error",
           description: "Failed to update user",
           variant: "destructive",
         });
       }
     } catch (error) {
       toast({
-        title: "Error",
+        title: "❌ Error",
         description: "An error occurred while updating user",
         variant: "destructive",
       });
     }
   };
-
   const handleDelete = async (id) => {
     try {
       const response = await fetch(`https://reqres.in/api/users/${id}`, {
@@ -119,19 +134,19 @@ export default function UsersList() {
         setDeletedUsers((prev) => [...prev, id]);
         setUsers(users.filter(u => u.id !== id));
         toast({
-          title: "Success",
+          title: "✅ Success",
           description: "User deleted successfully",
         });
       } else {
         toast({
-          title: "Error",
+          title: "❌ Error",
           description: "Failed to delete user",
           variant: "destructive",
         });
       }
     } catch (error) {
       toast({
-        title: "Error",
+        title: "❌ Error",
         description: "An error occurred while deleting user",
         variant: "destructive",
       });
@@ -232,4 +247,3 @@ export default function UsersList() {
     </div>
   );
 }
-
