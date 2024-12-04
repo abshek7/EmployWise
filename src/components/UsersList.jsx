@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { useToast } from "@/hooks/use-toast"
 
 export default function UsersList() {
@@ -75,17 +76,12 @@ export default function UsersList() {
   const handleUpdate = async (e) => {
     e.preventDefault();
     if (!editingUser) return;
-  
-    // Find the original user data for comparison
     const originalUser = users.find(user => user.id === editingUser.id);
-  
-    // Check if any details have changed
     if (
       originalUser.first_name === editingUser.first_name &&
       originalUser.last_name === editingUser.last_name &&
       originalUser.email === editingUser.email
     ) {
-      // No changes detected
       toast({
         title: "⚠️ No Changes",
         description: "No updates were made to the user details.",
@@ -231,18 +227,32 @@ export default function UsersList() {
       </div>
 
       <div className="mt-8 flex justify-center space-x-4">
-        <Button
-          onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-          disabled={page === 1}
-        >
-          Previous
-        </Button>
-        <Button
-          onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-          disabled={page === totalPages}
-        >
-          Next
-        </Button>
+      <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious 
+                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                disabled={page === 1}
+              />
+            </PaginationItem>
+            {[...Array(totalPages)].map((_, i) => (
+              <PaginationItem key={i}>
+                <PaginationLink 
+                  onClick={() => setPage(i + 1)}
+                  isActive={page === i + 1}
+                >
+                  {i + 1}
+                </PaginationLink>
+              </PaginationItem>
+            ))}
+            <PaginationItem>
+              <PaginationNext 
+                onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={page === totalPages}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
       </div>
     </div>
   );
