@@ -116,6 +116,9 @@ export default function UsersList() {
       if (response.ok) {
         const updatedUsers = users.map(u => (u.id === editingUser.id ? editingUser : u));
         setUsers(updatedUsers);
+        setAllUsers((prevUsers) => 
+          prevUsers.map(u => (u.id === editingUser.id ? editingUser : u)) 
+        );
         localStorage.setItem('users', JSON.stringify(updatedUsers));
         setEditingUser(null);
         toast({
@@ -138,6 +141,7 @@ export default function UsersList() {
     }
   };
 
+  
   const handleDelete = async (id) => {
     try {
       const response = await fetch(`https://reqres.in/api/users/${id}`, {
