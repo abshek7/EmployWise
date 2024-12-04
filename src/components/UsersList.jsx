@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/hooks/use-toast";
 
 export default function UsersList() {
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState([]); 
+  const [allUsers, setAllUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -21,12 +22,28 @@ export default function UsersList() {
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchUsers();
+    fetchAllUsers(); 
+    fetchUsers();  
   }, [page]);
 
   useEffect(() => {
-    filterUsers();
+    filterUsers();  
   }, [users, searchQuery]);
+
+  const fetchAllUsers = async () => {
+    try {
+      const response = await fetch('https://reqres.in/api/users?per_page=77'); 
+      const data = await response.json();
+      setAllUsers(data.data);
+    } catch (error) {
+      console.error('Error fetching all users:', error);
+      toast({
+        title: "❌ Error",
+        description: "Failed to fetch all users for search.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -53,9 +70,9 @@ export default function UsersList() {
 
   const filterUsers = () => {
     if (!searchQuery) {
-      setFilteredUsers(users);
+      setFilteredUsers(users);  
     } else {
-      const filtered = users.filter(user => 
+      const filtered = allUsers.filter(user => 
         user.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         user.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         user.email.toLowerCase().includes(searchQuery.toLowerCase())
@@ -120,6 +137,7 @@ export default function UsersList() {
       });
     }
   };
+
   const handleDelete = async (id) => {
     try {
       const response = await fetch(`https://reqres.in/api/users/${id}`, {
@@ -227,7 +245,7 @@ export default function UsersList() {
       </div>
 
       <div className="mt-8 flex justify-center space-x-4">
-      <Pagination>
+        <Pagination>
           <PaginationContent>
             <PaginationItem>
               <PaginationPrevious 
@@ -235,13 +253,13 @@ export default function UsersList() {
                 disabled={page === 1}
               />
             </PaginationItem>
-            {[...Array(totalPages)].map((_, i) => (
-              <PaginationItem key={i}>
+            {Array.from({ length: totalPages }, (_, index) => (
+              <PaginationItem key={index}>
                 <PaginationLink 
-                  onClick={() => setPage(i + 1)}
-                  isActive={page === i + 1}
+                  onClick={() => setPage(index + 1)}
+                  active={index + 1 === page}
                 >
-                  {i + 1}
+                  {index + 1}
                 </PaginationLink>
               </PaginationItem>
             ))}
