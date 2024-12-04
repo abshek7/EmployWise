@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { useToast } from "@/hooks/use-toast"
+
 
 export default function UsersList() {
   const [users, setUsers] = useState([]);
@@ -13,10 +15,10 @@ export default function UsersList() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [editingUser, setEditingUser] = useState(null);
-  const [message, setMessage] = useState('');
   const [deletedUsers, setDeletedUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchUsers();
@@ -41,6 +43,11 @@ export default function UsersList() {
       setTotalPages(data.total_pages);
     } catch (error) {
       console.error('Error fetching users:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch users. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -78,16 +85,27 @@ export default function UsersList() {
       });
 
       if (response.ok) {
-        setMessage('User updated successfully');
         setUsers(users.map(u => u.id === editingUser.id ? editingUser : u));
         const updatedUsers = users.map(u => (u.id === editingUser.id ? editingUser : u));
         localStorage.setItem('users', JSON.stringify(updatedUsers));
         setEditingUser(null);
+        toast({
+          title: "Success",
+          description: "User updated successfully",
+        });
       } else {
-        setMessage('Failed to update user');
+        toast({
+          title: "Error",
+          description: "Failed to update user",
+          variant: "destructive",
+        });
       }
     } catch (error) {
-      setMessage('An error occurred while updating user');
+      toast({
+        title: "Error",
+        description: "An error occurred while updating user",
+        variant: "destructive",
+      });
     }
   };
 
@@ -98,14 +116,25 @@ export default function UsersList() {
       });
 
       if (response.ok) {
-        setMessage('User deleted successfully');
         setDeletedUsers((prev) => [...prev, id]);
         setUsers(users.filter(u => u.id !== id));
+        toast({
+          title: "Success",
+          description: "User deleted successfully",
+        });
       } else {
-        setMessage('Failed to delete user');
+        toast({
+          title: "Error",
+          description: "Failed to delete user",
+          variant: "destructive",
+        });
       }
     } catch (error) {
-      setMessage('An error occurred while deleting user');
+      toast({
+        title: "Error",
+        description: "An error occurred while deleting user",
+        variant: "destructive",
+      });
     }
   };
 
@@ -118,7 +147,6 @@ export default function UsersList() {
         </Button>
       </div>
 
-      {message && <p className="text-center text-green-600 font-medium mb-4">{message}</p>}
       <div className="mb-6 max-w-screen-lg mx-auto">
         <Input
           type="text"
