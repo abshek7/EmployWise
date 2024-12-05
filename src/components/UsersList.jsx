@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -11,30 +12,49 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function UsersList() {
   const [users, setUsers] = useState([]); 
-  const [allUsers, setAllUsers] = useState([]);
+  const [allUsers, setAllUsers] = useState([]); 
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [editingUser, setEditingUser] = useState(null);
-  const [deletedUsers, setDeletedUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchAllUsers(); 
-    fetchUsers();  
+    fetchAllUsers();
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
   }, [page]);
 
   useEffect(() => {
-    filterUsers();  
-  }, [users, searchQuery]);
+    if (searchQuery) {
+      const filtered = allUsers.filter(user =>
+        user.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredUsers(filtered);
+    } else {
+      setFilteredUsers(users);
+    }
+  }, [users, allUsers, searchQuery]);
 
   const fetchAllUsers = async () => {
     try {
-      const response = await fetch('https://reqres.in/api/users?per_page=77'); 
-      const data = await response.json();
-      setAllUsers(data.data);
+      const response = await axios.get('https://reqres.in/api/users?per_page=77');
+      const data = response.data;
+      const persistedUsers = JSON.parse(localStorage.getItem('users')) || [];
+      const deletedUsers = JSON.parse(localStorage.getItem('deletedUsers')) || [];
+      const filteredAllUsers = data.data.filter(user => !deletedUsers.includes(user.id));
+      const mergedAllUsers = filteredAllUsers.map(user => {
+        const persistedUser = persistedUsers.find(p => p.id === user.id);
+        return persistedUser || user;
+      });
+
+      setAllUsers(mergedAllUsers);
     } catch (error) {
       console.error('Error fetching all users:', error);
       toast({
@@ -47,16 +67,17 @@ export default function UsersList() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch(`https://reqres.in/api/users?page=${page}`);
-      const data = await response.json();
-      const filteredUsers = data.data.filter((user) => !deletedUsers.includes(user.id));
+      const response = await axios.get(`https://reqres.in/api/users?page=${page}`);
+      const data = response.data;
       const persistedUsers = JSON.parse(localStorage.getItem('users')) || [];
-      const usersWithPersistedData = filteredUsers.map((user) => {
-        const persistedUser = persistedUsers.find((persisted) => persisted.id === user.id);
-        return persistedUser ? persistedUser : user;
+      const deletedUsers = JSON.parse(localStorage.getItem('deletedUsers')) || [];
+      const filteredUsers = data.data.filter(user => !deletedUsers.includes(user.id));
+      const mergedUsers = filteredUsers.map(user => {
+        const persistedUser = persistedUsers.find(p => p.id === user.id);
+        return persistedUser || user;
       });
 
-      setUsers(usersWithPersistedData);
+      setUsers(mergedUsers);
       setTotalPages(data.total_pages);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -65,19 +86,6 @@ export default function UsersList() {
         description: "Failed to fetch users. Please try again.",
         variant: "destructive",
       });
-    }
-  };
-
-  const filterUsers = () => {
-    if (!searchQuery) {
-      setFilteredUsers(users);  
-    } else {
-      const filtered = allUsers.filter(user => 
-        user.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredUsers(filtered);
     }
   };
 
@@ -93,6 +101,7 @@ export default function UsersList() {
   const handleUpdate = async (e) => {
     e.preventDefault();
     if (!editingUser) return;
+
     const originalUser = users.find(user => user.id === editingUser.id);
     if (
       originalUser.first_name === editingUser.first_name &&
@@ -105,34 +114,34 @@ export default function UsersList() {
       });
       return;
     }
-  
+
     try {
-      const response = await fetch(`https://reqres.in/api/users/${editingUser.id}`, {
-        method: 'PUT',
+      const response = await axios.put(`https://reqres.in/api/users/${editingUser.id}`, editingUser, {
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingUser),
       });
-  
-      if (response.ok) {
-        const updatedUsers = users.map(u => (u.id === editingUser.id ? editingUser : u));
-        setUsers(updatedUsers);
-        localStorage.setItem('users', JSON.stringify(updatedUsers));
+
+      if (response.status === 200) {
+        setUsers(users.map(u => u.id === editingUser.id ? editingUser : u));
+        setAllUsers(allUsers.map(u => u.id === editingUser.id ? editingUser : u));
+        const persistedUsers = JSON.parse(localStorage.getItem('users')) || [];
+        const updatedPersistedUsers = [
+          ...persistedUsers.filter(u => u.id !== editingUser.id),
+          editingUser
+        ];
+        localStorage.setItem('users', JSON.stringify(updatedPersistedUsers));
+
         setEditingUser(null);
         toast({
           title: "✅ Success",
-          description: "User updated successfully",
+          description: "User updated successfully.",
         });
       } else {
-        toast({
-          title: "❌ Error",
-          description: "Failed to update user",
-          variant: "destructive",
-        });
+        throw new Error('Failed to update user');
       }
     } catch (error) {
       toast({
         title: "❌ Error",
-        description: "An error occurred while updating user",
+        description: "Failed to update user.",
         variant: "destructive",
       });
     }
@@ -140,28 +149,28 @@ export default function UsersList() {
 
   const handleDelete = async (id) => {
     try {
-      const response = await fetch(`https://reqres.in/api/users/${id}`, {
-        method: 'DELETE',
-      });
+      const response = await axios.delete(`https://reqres.in/api/users/${id}`);
 
-      if (response.ok) {
-        setDeletedUsers((prev) => [...prev, id]);
+      if (response.status === 204) {
         setUsers(users.filter(u => u.id !== id));
+        setAllUsers(allUsers.filter(u => u.id !== id));
+        const deletedUsers = JSON.parse(localStorage.getItem('deletedUsers')) || [];
+        localStorage.setItem('deletedUsers', JSON.stringify([...deletedUsers, id]));
+
         toast({
           title: "✅ Success",
           description: "User deleted successfully",
         });
+        if (users.length === 1 && page > 1) {
+          setPage(prev => prev - 1);
+        }
       } else {
-        toast({
-          title: "❌ Error",
-          description: "Failed to delete user",
-          variant: "destructive",
-        });
+        throw new Error('Failed to delete user');
       }
     } catch (error) {
       toast({
         title: "❌ Error",
-        description: "An error occurred while deleting user",
+        description: "Failed to delete user",
         variant: "destructive",
       });
     }
@@ -244,34 +253,36 @@ export default function UsersList() {
         ))}
       </div>
 
-      <div className="mt-8 flex justify-center space-x-4">
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious 
-                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-                disabled={page === 1}
-              />
-            </PaginationItem>
-            {Array.from({ length: totalPages }, (_, index) => (
-              <PaginationItem key={index}>
-                <PaginationLink 
-                  onClick={() => setPage(index + 1)}
-                  active={index + 1 === page}
-                >
-                  {index + 1}
-                </PaginationLink>
+      {!searchQuery && (
+        <div className="mt-8 flex justify-center">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+                  disabled={page === 1}
+                />
               </PaginationItem>
-            ))}
-            <PaginationItem>
-              <PaginationNext 
-                onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-                disabled={page === totalPages}
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      </div>
+              {Array.from({ length: totalPages }, (_, index) => (
+                <PaginationItem key={index}>
+                  <PaginationLink 
+                    onClick={() => setPage(index + 1)}
+                    active={index + 1 === page}
+                  >
+                    {index + 1}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
+              <PaginationItem>
+                <PaginationNext 
+                  onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={page === totalPages}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
     </div>
   );
 }
