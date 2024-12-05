@@ -11,31 +11,49 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function UsersList() {
   const [users, setUsers] = useState([]); 
-  const [allUsers, setAllUsers] = useState([]);
+  const [allUsers, setAllUsers] = useState([]); 
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [editingUser, setEditingUser] = useState(null);
-  const [deletedUsers, setDeletedUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
-
   useEffect(() => {
-    fetchAllUsers(); 
-    fetchUsers();  
+    fetchAllUsers();
+  }, []);
+
+ 
+  useEffect(() => {
+    fetchUsers();
   }, [page]);
 
   useEffect(() => {
-    filterUsers();
+    if (searchQuery) {
+      const filtered = allUsers.filter(user =>
+        user.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredUsers(filtered);
+    } else {
+      setFilteredUsers(users);
+    }
   }, [users, allUsers, searchQuery]);
-  
 
   const fetchAllUsers = async () => {
     try {
-      const response = await fetch('https://reqres.in/api/users?per_page=77'); 
+      const response = await fetch('https://reqres.in/api/users?per_page=77');
       const data = await response.json();
-      setAllUsers(data.data);
+      const persistedUsers = JSON.parse(localStorage.getItem('users')) || [];
+      const deletedUsers = JSON.parse(localStorage.getItem('deletedUsers')) || [];
+      const filteredAllUsers = data.data.filter(user => !deletedUsers.includes(user.id));
+      const mergedAllUsers = filteredAllUsers.map(user => {
+        const persistedUser = persistedUsers.find(p => p.id === user.id);
+        return persistedUser || user;
+      });
+
+      setAllUsers(mergedAllUsers);
     } catch (error) {
       console.error('Error fetching all users:', error);
       toast({
@@ -50,14 +68,15 @@ export default function UsersList() {
     try {
       const response = await fetch(`https://reqres.in/api/users?page=${page}`);
       const data = await response.json();
-      const filteredUsers = data.data.filter((user) => !deletedUsers.includes(user.id));
       const persistedUsers = JSON.parse(localStorage.getItem('users')) || [];
-      const usersWithPersistedData = filteredUsers.map((user) => {
-        const persistedUser = persistedUsers.find((persisted) => persisted.id === user.id);
-        return persistedUser ? persistedUser : user;
+      const deletedUsers = JSON.parse(localStorage.getItem('deletedUsers')) || [];
+      const filteredUsers = data.data.filter(user => !deletedUsers.includes(user.id));
+      const mergedUsers = filteredUsers.map(user => {
+        const persistedUser = persistedUsers.find(p => p.id === user.id);
+        return persistedUser || user;
       });
 
-      setUsers(usersWithPersistedData);
+      setUsers(mergedUsers);
       setTotalPages(data.total_pages);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -68,20 +87,6 @@ export default function UsersList() {
       });
     }
   };
-
-  const filterUsers = () => {
-    if (!searchQuery) {
-      setFilteredUsers(users); // Default to paginated users if no search query
-    } else {
-      const filtered = allUsers.filter(user =>
-        user.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredUsers(filtered);
-    }
-  };
-  
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -95,8 +100,8 @@ export default function UsersList() {
   const handleUpdate = async (e) => {
     e.preventDefault();
     if (!editingUser) return;
-  
-    const originalUser = allUsers.find(user => user.id === editingUser.id);
+
+    const originalUser = users.find(user => user.id === editingUser.id);
     if (
       originalUser.first_name === editingUser.first_name &&
       originalUser.last_name === editingUser.last_name &&
@@ -108,50 +113,41 @@ export default function UsersList() {
       });
       return;
     }
-  
+
     try {
       const response = await fetch(`https://reqres.in/api/users/${editingUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingUser),
       });
-  
+
       if (response.ok) {
-        // Update `users` and `allUsers` state arrays
-        const updatedUsers = users.map(u => (u.id === editingUser.id ? editingUser : u));
-        const updatedAllUsers = allUsers.map(u => (u.id === editingUser.id ? editingUser : u));
-  
-        // Update `localStorage`
+        setUsers(users.map(u => u.id === editingUser.id ? editingUser : u));
+        setAllUsers(allUsers.map(u => u.id === editingUser.id ? editingUser : u));
         const persistedUsers = JSON.parse(localStorage.getItem('users')) || [];
-        const updatedPersistedUsers = persistedUsers.filter(u => u.id !== editingUser.id);
-        updatedPersistedUsers.push(editingUser);
+        const updatedPersistedUsers = [
+          ...persistedUsers.filter(u => u.id !== editingUser.id),
+          editingUser
+        ];
         localStorage.setItem('users', JSON.stringify(updatedPersistedUsers));
-  
-        setUsers(updatedUsers); // Update the paginated list
-        setAllUsers(updatedAllUsers); // Update the search source
-  
-        setEditingUser(null); // Close the dialog
+
+        setEditingUser(null);
         toast({
           title: "✅ Success",
           description: "User updated successfully.",
         });
       } else {
-        toast({
-          title: "❌ Error",
-          description: "Failed to update user.",
-          variant: "destructive",
-        });
+        throw new Error('Failed to update user');
       }
     } catch (error) {
       toast({
         title: "❌ Error",
-        description: "An error occurred while updating user.",
+        description: "Failed to update user.",
         variant: "destructive",
       });
     }
   };
-  
-  
+
   const handleDelete = async (id) => {
     try {
       const response = await fetch(`https://reqres.in/api/users/${id}`, {
@@ -159,23 +155,25 @@ export default function UsersList() {
       });
 
       if (response.ok) {
-        setDeletedUsers((prev) => [...prev, id]);
         setUsers(users.filter(u => u.id !== id));
+        setAllUsers(allUsers.filter(u => u.id !== id));
+        const deletedUsers = JSON.parse(localStorage.getItem('deletedUsers')) || [];
+        localStorage.setItem('deletedUsers', JSON.stringify([...deletedUsers, id]));
+
         toast({
           title: "✅ Success",
           description: "User deleted successfully",
         });
+        if (users.length === 1 && page > 1) {
+          setPage(prev => prev - 1);
+        }
       } else {
-        toast({
-          title: "❌ Error",
-          description: "Failed to delete user",
-          variant: "destructive",
-        });
+        throw new Error('Failed to delete user');
       }
     } catch (error) {
       toast({
         title: "❌ Error",
-        description: "An error occurred while deleting user",
+        description: "Failed to delete user",
         variant: "destructive",
       });
     }
@@ -258,34 +256,36 @@ export default function UsersList() {
         ))}
       </div>
 
-      <div className="mt-8 flex justify-center space-x-4">
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious 
-                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-                disabled={page === 1}
-              />
-            </PaginationItem>
-            {Array.from({ length: totalPages }, (_, index) => (
-              <PaginationItem key={index}>
-                <PaginationLink 
-                  onClick={() => setPage(index + 1)}
-                  active={index + 1 === page}
-                >
-                  {index + 1}
-                </PaginationLink>
+      {!searchQuery && (
+        <div className="mt-8 flex justify-center">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+                  disabled={page === 1}
+                />
               </PaginationItem>
-            ))}
-            <PaginationItem>
-              <PaginationNext 
-                onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-                disabled={page === totalPages}
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      </div>
+              {Array.from({ length: totalPages }, (_, index) => (
+                <PaginationItem key={index}>
+                  <PaginationLink 
+                    onClick={() => setPage(index + 1)}
+                    active={index + 1 === page}
+                  >
+                    {index + 1}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
+              <PaginationItem>
+                <PaginationNext 
+                  onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={page === totalPages}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
     </div>
   );
 }
